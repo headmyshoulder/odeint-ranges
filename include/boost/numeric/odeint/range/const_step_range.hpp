@@ -18,27 +18,7 @@
 #ifndef BOOST_NUMERIC_ODEINT_RANGE_CONST_STEP_RANGE_HPP_INCLUDED
 #define BOOST_NUMERIC_ODEINT_RANGE_CONST_STEP_RANGE_HPP_INCLUDED
 
-/*
-class c_string_range
-: public range_facade<c_string_range>
-{
-friend range_access;
-char const * sz_;
-char const & current() const { return *sz_; }
-bool done() const { return *sz_ == '\0'; }
-void next() { ++sz_; }
-public:
-c_string_range() = default;
-explicit c_string_range(char const *sz) : sz_(sz)
-{
-assert(sz != nullptr);
-}
-};
-*/
-
- // #include <boost/numeric/odeint/range/detail/infinite_range.hpp>
-
-#include <range/v3/all.hpp>
+#include <range/v3/range_facade.hpp>
 
 
 namespace boost {

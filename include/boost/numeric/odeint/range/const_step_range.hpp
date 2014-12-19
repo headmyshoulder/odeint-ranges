@@ -46,6 +46,11 @@ public:
         , m_dt( dt )
     {}
 
+    state_type const& value( void ) const
+    {
+        return current();
+    }
+
 private:
 
     friend ranges::range_access;

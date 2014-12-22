@@ -18,6 +18,9 @@
 #ifndef BOOST_NUMERIC_ODEINT_RANGE_CONST_STEP_RANGE_HPP_INCLUDED
 #define BOOST_NUMERIC_ODEINT_RANGE_CONST_STEP_RANGE_HPP_INCLUDED
 
+#include <boost/numeric/odeint/util/unwrap_reference.hpp>
+#include <boost/numeric/odeint/stepper/stepper_categories.hpp>
+
 #include <range/v3/range_facade.hpp>
 
 
@@ -25,8 +28,15 @@ namespace boost {
 namespace numeric {
 namespace odeint {
 
+template< typename Stepper , typename System , typename State , typename Time ,
+          typename StepperType = typename odeint::unwrap_reference< Stepper >::type::stepper_category >
+class const_step_range ;
+
+
+/// Specialization for steppers
 template< typename Stepper , typename System , typename State , typename Time >
-class const_step_range : public ranges::range_facade< const_step_range< Stepper , System , State , Time > , true >
+class const_step_range< Stepper , System , State , Time , stepper_tag >
+    : public ranges::range_facade< const_step_range< Stepper , System , State , Time , stepper_tag > , true >
 {
 public:
 

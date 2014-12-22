@@ -40,14 +40,16 @@ class const_step_range< Stepper , System , State , Time , stepper_tag >
 {
 public:
 
-    using stepper_type = Stepper;
+    using wrapped_stepper_type = Stepper;
+    using stepper_type = typename odeint::unwrap_reference< wrapped_stepper_type >::type;
     using system_type = System;
-    using state_type = State;
+    using wrapped_state_type = State;
+    using state_type = typename odeint::unwrap_reference< wrapped_state_type >::type;
     using time_type = Time;
 
     const_step_range( void ) = default;
 
-    const_step_range( stepper_type stepper , system_type system , state_type state ,
+    const_step_range( wrapped_stepper_type stepper , system_type system , wrapped_state_type state ,
                       time_type time , time_type dt )
         : m_stepper( std::move( stepper ) )
         , m_system( std::move( system ) )
@@ -67,7 +69,8 @@ private:
 
     state_type const& current( void ) const
     {
-        return m_state;
+        state_type const& state = m_state;
+        return state;
     }
     
     bool done( void ) const
@@ -77,13 +80,15 @@ private:
   
     void next( void )
     {
-        m_stepper.do_step( m_system , m_state , m_time , m_dt );
+        stepper_type& stepper = m_stepper;
+        state_type& state = m_state;
+        stepper.do_step( m_system , state , m_time , m_dt );
         m_time += m_dt;
     }
 
-    stepper_type m_stepper;
+    wrapped_stepper_type m_stepper;
     system_type m_system;
-    state_type m_state;
+    wrapped_state_type m_state;
     time_type m_time;
     time_type m_dt;
 };

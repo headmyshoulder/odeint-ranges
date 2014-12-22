@@ -14,7 +14,8 @@ cmake_minimum_required ( VERSION 2.8 )
 
 set ( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake )
 
-find_package ( Boost REQUIRED )
+set ( Boost_USE_STATIC_LIBS ON )
+find_package ( Boost COMPONENTS unit_test_framework REQUIRED )
 find_package ( RangeV3 REQUIRED )
 
 
@@ -32,5 +33,4 @@ include_directories ( ${RangeV3_INCLUDE_DIR} )
 include_directories ( include )
 
 add_subdirectory ( examples )
-# add_subdirectory ( test )
-
+add_subdirectory ( test )

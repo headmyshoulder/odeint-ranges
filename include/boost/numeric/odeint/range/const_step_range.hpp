@@ -18,87 +18,170 @@
 #ifndef BOOST_NUMERIC_ODEINT_RANGE_CONST_STEP_RANGE_HPP_INCLUDED
 #define BOOST_NUMERIC_ODEINT_RANGE_CONST_STEP_RANGE_HPP_INCLUDED
 
-#include <boost/numeric/odeint/util/unwrap_reference.hpp>
-#include <boost/numeric/odeint/stepper/stepper_categories.hpp>
+#include <boost/numeric/odeint/range/state_policies.hpp>
+#include <boost/numeric/odeint/range/ode_range_base.hpp>
 
-#include <range/v3/range_facade.hpp>
+#include <boost/numeric/odeint/util/unwrap_reference.hpp>
+#include <boost/numeric/odeint/util/detail/less_with_sign.hpp>
+#include <boost/numeric/odeint/stepper/stepper_categories.hpp>
 
 
 namespace boost {
 namespace numeric {
 namespace odeint {
+    
+
+
+
 
 template< typename Stepper , typename System , typename State , typename Time ,
-          typename StepperType = typename odeint::unwrap_reference< Stepper >::type::stepper_category >
+          typename StatePolicy = state_policy ,
+          typename StepperType = typename base_tag< typename odeint::unwrap_reference< Stepper >::type::stepper_category >::type >
 class const_step_range ;
 
 
-/// Specialization for steppers
-template< typename Stepper , typename System , typename State , typename Time >
-class const_step_range< Stepper , System , State , Time , stepper_tag >
-    : public ranges::range_facade< const_step_range< Stepper , System , State , Time , stepper_tag > , true >
-{
-public:
-
-    using wrapped_stepper_type = Stepper;
-    using stepper_type = typename odeint::unwrap_reference< wrapped_stepper_type >::type;
-    using system_type = System;
-    using wrapped_state_type = State;
-    using state_type = typename odeint::unwrap_reference< wrapped_state_type >::type;
-    using time_type = Time;
-
-    const_step_range( void ) = default;
-
-    const_step_range( wrapped_stepper_type stepper , system_type system , wrapped_state_type state ,
-                      time_type time , time_type dt )
-        : m_stepper( std::move( stepper ) )
-        , m_system( std::move( system ) )
-        , m_state( std::move( state ) )
-        , m_time( time )
-        , m_dt( dt )
-    {}
-
-    state_type const& value( void ) const
-    {
-        return current();
-    }
-
-private:
-
-    friend ranges::range_access;
-
-    state_type const& current( void ) const
-    {
-        state_type const& state = m_state;
-        return state;
-    }
-    
-    bool done( void ) const
-    {
-        return false;
-    }
-  
-    void next( void )
-    {
-        stepper_type& stepper = m_stepper;
-        state_type& state = m_state;
-        stepper.do_step( m_system , state , m_time , m_dt );
-        m_time += m_dt;
-    }
-
-    wrapped_stepper_type m_stepper;
-    system_type m_system;
-    wrapped_state_type m_state;
-    time_type m_time;
-    time_type m_dt;
-};
-
+/// Factory function for const step range
 template< typename Stepper , typename System , typename State , typename Time >
 auto make_const_step_range( Stepper stepper , System system , State state , Time time , Time dt )
 {
     return const_step_range< Stepper , System , State , Time >(
         std::move( stepper ) , std::move( system ) , std::move( state ) , time , dt );
 }
+
+/// Factory function for const step range with time
+template< typename Stepper , typename System , typename State , typename Time >
+auto make_const_step_time_range( Stepper stepper , System system , State state , Time time , Time dt )
+{
+    return const_step_range< Stepper , System , State , Time , state_and_time_policy >(
+        std::move( stepper ) , std::move( system ) , std::move( state ) , time , dt );
+}
+
+
+
+
+
+
+/// Specialization for steppers
+template< typename Stepper , typename System , typename State , typename Time , typename StatePolicy >
+class const_step_range< Stepper , System , State , Time , StatePolicy , stepper_tag >
+    : public ode_range_base<
+        const_step_range< Stepper , System , State , Time , StatePolicy , stepper_tag > ,
+        Stepper , System , State , Time , StatePolicy >
+{
+public:
+    
+    using base_type = ode_range_base<
+        const_step_range< Stepper , System , State , Time , StatePolicy , stepper_tag > ,
+        Stepper , System , State , Time , StatePolicy > ;
+    
+    using base_type::base_type;
+
+private:
+
+    friend ranges::range_access;
+    
+    struct cursor
+    {
+        const_step_range* m_rng;
+        
+        cursor( void ) = default;
+        
+        explicit cursor( const_step_range& rng)
+        : m_rng( &rng )
+        {}
+        
+        decltype( auto ) current( void ) const
+        {
+            typename base_type::state_type const& state = m_rng->m_state;
+            return StatePolicy {} ( state , m_rng->m_time );
+        }
+    
+        bool done( void ) const
+        {
+            return false;
+        }
+  
+        void next( void )
+        {
+            typename base_type::stepper_type& stepper = m_rng->m_stepper;
+            typename base_type::state_type& state = m_rng->m_state;
+            stepper.do_step( m_rng->m_system , state , m_rng->m_time , m_rng->m_dt );
+            m_rng->m_time += m_rng->m_dt;
+        }
+    };
+    
+    cursor begin_cursor()
+    {
+        return cursor { *this };
+    }
+};
+
+
+
+
+
+
+
+/// Specialization for dense output steppers
+template< typename Stepper , typename System , typename State , typename Time , typename StatePolicy >
+class const_step_range< Stepper , System , State , Time , StatePolicy , dense_output_stepper_tag >
+    : public ode_range_base<
+        const_step_range< Stepper , System , State , Time , StatePolicy , dense_output_stepper_tag > ,
+        Stepper , System , State , Time , StatePolicy >
+{
+public:
+    
+    using base_type = ode_range_base<
+        const_step_range< Stepper , System , State , Time , StatePolicy , dense_output_stepper_tag > ,
+        Stepper , System , State , Time , StatePolicy > ;
+    
+    using base_type::base_type;
+
+private:
+
+    friend ranges::range_access;
+    
+    struct cursor
+    {
+        const_step_range* m_rng;
+        
+        cursor( void ) = default;
+        
+        explicit cursor( const_step_range& rng)
+        : m_rng( &rng )
+        {}
+        
+        decltype( auto ) current( void ) const
+        {
+            typename base_type::state_type const& state = m_rng->m_state;
+            return StatePolicy {} ( state , m_rng->m_time );
+        }
+    
+        bool done( void ) const
+        {
+            return false;
+        }
+  
+        void next( void )
+        {
+            typename base_type::stepper_type& stepper = m_rng->m_stepper;
+            typename base_type::state_type& state = m_rng->m_state;
+            m_rng->m_time += m_rng->m_dt;
+
+            while( detail::less_with_sign( stepper.current_time() , m_rng->m_time , stepper.current_time_step() ) )
+            {
+                stepper.do_step( m_rng->m_system );
+            }
+            stepper.calc_state( m_rng->m_time , state );
+        }
+    };
+    
+    cursor begin_cursor()
+    {
+        return cursor { *this };
+    }
+};
+
 
 
 

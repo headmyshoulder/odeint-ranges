@@ -23,8 +23,15 @@
 
 #include <boost/numeric/odeint/range/const_step_range.hpp>
 #include <boost/numeric/odeint/stepper/runge_kutta4.hpp>
+#include <boost/numeric/odeint/stepper/runge_kutta_dopri5.hpp>
+#include <boost/numeric/odeint/stepper/generation/make_dense_output.hpp>
+#include <boost/numeric/odeint/stepper/generation/make_controlled.hpp>
+#include <boost/numeric/odeint/stepper/generation/generation_dense_output_runge_kutta.hpp>
+#include <boost/numeric/odeint/stepper/generation/generation_runge_kutta_dopri5.hpp>
 
 #include <boost/test/unit_test.hpp>
+
+#include <boost/type_index.hpp>
 
 #include <range/v3/view/take.hpp>
 #include <range/v3/algorithm/for_each.hpp> 
@@ -76,8 +83,27 @@ BOOST_AUTO_TEST_CASE( test_rk4 )
         } );
 
     BOOST_CHECK_CLOSE( 10.0 , x[0] , 1.0e-10 );
-    BOOST_CHECK_CLOSE( 10.09 , r.value()[0] , 1.0e-10 );
+    BOOST_CHECK_CLOSE( 10.10 , r.value()[0] , 1.0e-10 );
 }
+
+BOOST_AUTO_TEST_CASE( test_rk4_time )
+{
+    using state_type = std::array< double , 1 >;
+    
+    runge_kutta4< state_type > stepper;
+    state_type x {{ 10.0 }};
+
+    auto r = make_const_step_time_range( stepper , lorenz {} , x , 0.0 , 0.01 );
+    auto r2 = ranges::view::take( r , 10 );
+
+    ranges::for_each( r2 , []( std::pair< state_type const& , double > const& x ) {
+            // std::cout << x.second << " " << x.first[0] << std::endl;
+        } );
+
+    BOOST_CHECK_CLOSE( 10.0 , x[0] , 1.0e-10 );
+    BOOST_CHECK_CLOSE( 10.10 , r.value()[0] , 1.0e-10 );
+}
+
 
 BOOST_AUTO_TEST_CASE( test_rk4_ref )
 {
@@ -86,16 +112,129 @@ BOOST_AUTO_TEST_CASE( test_rk4_ref )
     runge_kutta4< state_type > stepper;
     state_type x {{ 10.0 }};
 
-    auto r = make_const_step_range( stepper , lorenz {} , boost::ref( x ) , 0.0 , 0.01 );
+    auto r = make_const_step_range( stepper , lorenz {} , std::ref( x ) , 0.0 , 0.01 );
     auto r2 = ranges::view::take( r , 10 );
 
     ranges::for_each( r2 , []( state_type const& x ) {
-            std::cout << x[0] << "\n";
+            // std::cout << x[0] << "\n";
         } );
 
-    // BOOST_CHECK_CLOSE( 10.09 , x[0] , 1.0e-10 );
-    // BOOST_CHECK_CLOSE( 10.09 , r.value()[0] , 1.0e-10 );
+    BOOST_CHECK_CLOSE( 10.10 , x[0] , 1.0e-10 );
+    BOOST_CHECK_CLOSE( 10.10 , r.value()[0] , 1.0e-10 );
 }
+
+BOOST_AUTO_TEST_CASE( test_rk4_ref_stepper_ref )
+{
+    using state_type = std::array< double , 1 >;
+    
+    runge_kutta4< state_type > stepper;
+    state_type x {{ 10.0 }};
+
+    auto r = make_const_step_range( std::ref( stepper ) , lorenz {} , std::ref( x ) , 0.0 , 0.01 );
+    auto r2 = ranges::view::take( r , 10 );
+
+    ranges::for_each( r2 , []( state_type const& x ) {
+            // std::cout << x[0] << "\n";
+        } );
+
+    BOOST_CHECK_CLOSE( 10.10 , x[0] , 1.0e-10 );
+    BOOST_CHECK_CLOSE( 10.10 , r.value()[0] , 1.0e-10 );
+}
+
+// BOOST_AUTO_TEST_CASE( test_rk4_view )
+// {
+//     using state_type = std::array< double , 1 >;
+//     
+//     runge_kutta4< state_type > stepper;
+//     state_type x {{ 10.0 }};
+// 
+//     auto r = make_const_step_range( std::ref( stepper ) , lorenz {} , std::ref( x ) , 0.0 , 0.01 );
+//     // auto r2 = ranges::view::take( r , 10 );
+// 
+//     ranges::for_each( ranges::view::take( r , 10 ) , []( state_type const& x ) {
+//             // std::cout << x[0] << "\n";
+//         } );
+// 
+//     BOOST_CHECK_CLOSE( 10.10 , x[0] , 1.0e-10 );
+//     BOOST_CHECK_CLOSE( 10.10 , r.value()[0] , 1.0e-10 );
+// }
+
+
+BOOST_AUTO_TEST_CASE( test_dopri5 )
+{
+    using state_type = std::array< double , 1 >;
+    
+    auto stepper = make_dense_output( 1.0e-6 , 1.0e-6 , runge_kutta_dopri5< state_type >{} );
+    state_type x {{ 10.0 }};
+
+    auto r = make_const_step_range( stepper , lorenz {} , x , 0.0 , 0.01 );
+    auto r2 = ranges::view::take( r , 10 );
+
+    ranges::for_each( r2 , []( state_type const& x ) {
+            // std::cout << x[0] << " " << & ( x ) << std::endl;
+        } );
+
+    BOOST_CHECK_CLOSE( 10.0 , x[0] , 1.0e-10 );
+    BOOST_CHECK_CLOSE( 10.10 , r.value()[0] , 1.0e-10 );
+}
+
+BOOST_AUTO_TEST_CASE( test_dopri5_ref )
+{
+    using state_type = std::array< double , 1 >;
+    
+    auto stepper = make_dense_output( 1.0e-6 , 1.0e-6 , runge_kutta_dopri5< state_type >{} );
+    state_type x {{ 10.0 }};
+
+    auto r = make_const_step_range( stepper , lorenz {} , std::ref( x ) , 0.0 , 0.01 );
+    auto r2 = ranges::view::take( r , 10 );
+
+    ranges::for_each( r2 , []( state_type const& x ) {
+            // std::cout << x[0] << " " << & ( x ) << std::endl;
+        } );
+
+    BOOST_CHECK_CLOSE( 10.10 , x[0] , 1.0e-10 );
+    BOOST_CHECK_CLOSE( 10.10 , r.value()[0] , 1.0e-10 );
+}
+
+
+BOOST_AUTO_TEST_CASE( test_dopri5_ref_stepper_ref )
+{
+    using state_type = std::array< double , 1 >;
+    
+    auto stepper = make_dense_output( 1.0e-6 , 1.0e-6 , runge_kutta_dopri5< state_type >{} );
+    state_type x {{ 10.0 }};
+
+    auto r = make_const_step_range( std::ref( stepper ) , lorenz {} , std::ref( x ) , 0.0 , 0.01 );
+    auto r2 = ranges::view::take( r , 10 );
+
+    ranges::for_each( r2 , []( state_type const& x ) {
+            // std::cout << x[0] << " " << & ( x ) << std::endl;
+        } );
+
+    BOOST_CHECK_CLOSE( 10.10 , x[0] , 1.0e-10 );
+    BOOST_CHECK_CLOSE( 10.10 , r.value()[0] , 1.0e-10 );
+}
+
+BOOST_AUTO_TEST_CASE( test_dopri5_time )
+{
+    using state_type = std::array< double , 1 >;
+    
+    auto stepper = make_dense_output( 1.0e-6 , 1.0e-6 , runge_kutta_dopri5< state_type >{} );
+    state_type x {{ 10.0 }};
+
+    auto r = make_const_step_time_range( stepper , lorenz {} , x , 0.0 , 0.01 );
+    auto r2 = ranges::view::take( r , 10 );
+
+    ranges::for_each( r2 , []( std::pair< state_type const& , double > const& x ) {
+//            std::cout << x.second << " " << x.first[0] << std::endl;
+        } );
+
+    BOOST_CHECK_CLOSE( 10.0 , x[0] , 1.0e-10 );
+    BOOST_CHECK_CLOSE( 10.10 , r.value()[0] , 1.0e-10 );
+}
+
+
+
 
 
 BOOST_AUTO_TEST_SUITE_END()

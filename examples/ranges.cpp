@@ -18,6 +18,7 @@
 #include <boost/numeric/odeint/stepper/runge_kutta4.hpp>
 
 #include <range/v3/view/take.hpp>
+#include <range/v3/view/take_while.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 
 #include <iostream>
@@ -48,8 +49,7 @@ struct printer
     }
 };
 
-
-int main( int argc , char *argv[] )
+void case1( void )
 {
     using namespace boost::numeric::odeint;
 
@@ -65,8 +65,38 @@ int main( int argc , char *argv[] )
             std::cout << x[0] << " " << x[1] << " " << x[2] << "\n";
         } );
 
-    // ranges::for_each( r , printer {} );
+    auto r3 = ranges::view::take_while( r , []( auto const& x ) { return x[0] < 15.0; } );
+    ranges::for_each( r3 , []( state_type const& x ) {
+            std::cout << x[0] << " " << x[1] << " " << x[2] << "\n";
+        } );
 
+    // ranges::for_each( r , printer {} );
+}
+
+void case2( void )
+{
+    auto printer = []( auto const& x ) {
+        std::cout << x[0] << " " << x[1] << " " << x[2] << "\n"; };
+
+    using namespace boost::numeric::odeint;
+
+    using state_type = std::array< double , 3 >;
     
+    runge_kutta4< state_type > stepper;
+    state_type x {{ 10.0 , 10.0 , 10.0 }};
+
+    auto r = make_const_step_range( stepper , lorenz {} , x , 0.0 , 0.01 );
+    auto first = r.begin();
+    printer( *first );
+    ++first;
+    printer( *first );
+
+}
+
+
+int main( int argc , char *argv[] )
+{
+    case1();
+    case2();
     return 0;
 }
